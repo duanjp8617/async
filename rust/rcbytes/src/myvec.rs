@@ -6,9 +6,9 @@ use std::ops::DerefMut;
 use std::marker::PhantomData;
 
 pub struct MyVec<T> {
-    ptr : Unique<T>,
-    cap : usize,
-    len : usize,
+    pub(crate) ptr : Unique<T>,
+    pub (crate) cap : usize,
+    pub (crate) len : usize,
 }
 
 impl<T> MyVec<T> {
