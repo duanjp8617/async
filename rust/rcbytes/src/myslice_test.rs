@@ -1,4 +1,4 @@
-use crate::myslice::{MySlice, MySliceMut};
+use crate::myslice::{MySlice, MySliceMut, MimicChunksMut};
 use crate::myvec::MyVec;
 
 pub fn test_myslice() {
@@ -107,6 +107,9 @@ pub fn split_at() {
 }
 
 pub fn test_my_chunks_mut() {
+    let empty_slice = MySliceMut::<i32>::empty_slice();
+    println!("{}", empty_slice.len());
+
     let mut vec = MyVec::new();
     vec.push(1);
     vec.push(2);
@@ -147,4 +150,47 @@ pub fn test_my_chunks_mut() {
         assert!(*val == 5);
         println!("{}", val);
     });
+
+    let (mut fst, mut snd) = slice2.split_at(1);
+    fst.at(0).map(|val|{
+        assert!(*val == 4);
+        println!("{}", val);
+    });
+    snd.at(0).map(|val|{
+        assert!(*val == 5);
+        println!("{}", val);
+    });
+
+    let mut slice = MySliceMut::from(&mut vec);
+    let mut chunk1 = slice.chunks_mut(3).next().unwrap();
+    // let mut chunk2 = slice.chunks_mut(3).next().unwrap();
+    chunk1.at(0).map(|val|{
+        println!("{}", val);
+    });
+
+    let mut slice = MySliceMut::from(&mut vec);
+    let mut chunks = slice.chunks_mut(3);
+    // let mut chunk2 = slice.chunks_mut(3);
+    let mut chunk1 = chunks.next().unwrap();
+    chunk1.at(0).map(|val|{
+        *val += 1;
+        println!("{}", val);
+    });
+}
+
+pub fn test_mimic_slice_mut() {
+    let slice = &mut [1,2,3,4,5][..];
+    let mut chunks = MimicChunksMut::new(slice, 3);
+    let chunk1 = chunks.next().unwrap();
+    let chunk2 = chunks.next().unwrap();
+
+    for i in chunk1.iter_mut() {
+        *i = *i + 1;
+        println!("{}", i);
+    }
+
+    for j in chunk2.iter_mut() {
+        *j = *j + 1;
+        println!("{}", j);
+    }
 }

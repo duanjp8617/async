@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
-use std::mem;
 use std::cmp;
 use std::ptr;
+use std::mem;
 
 use crate::myvec::MyVec;
 
@@ -98,7 +98,7 @@ impl<'a, T> MySliceMut<'a, T> {
         (fst, snd)
     }
 
-    pub fn chunks_mut(&mut self, chunk_size : usize) -> MyChunksMut<'_, T> {
+    pub fn chunks_mut<'b>(&'b mut self, chunk_size : usize) -> MyChunksMut<'b, T> {
         assert!(chunk_size <= self.len && chunk_size > 0);
         MyChunksMut {
             ptr : self.ptr,
@@ -136,5 +136,32 @@ impl<'a, T> Iterator for MyChunksMut<'a, T> {
             }
             Some(res)
         }
+    }
+}
+
+pub struct MimicChunksMut<'a, T : 'a> {
+    slice : &'a mut [T],
+    chunk_size : usize
+}
+
+impl<'a, T> MimicChunksMut<'a, T> {
+    pub fn new(slice : &'a mut [T], chunk_size : usize) -> Self {
+        assert!(chunk_size > 0 && chunk_size < slice.len());
+        Self {
+            slice : slice,
+            chunk_size : chunk_size,
+        }
+    }
+}
+
+impl<'a, T> Iterator for MimicChunksMut<'a, T> {
+    type Item = &'a mut [T];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let original_slice : &mut [T] = mem::replace(&mut self.slice, &mut []);
+        let chunk_size = cmp::min(self.chunk_size, original_slice.len());
+        let (chunk, rest) = original_slice.split_at_mut(chunk_size);
+        self.slice = rest;
+        Some(chunk)
     }
 }

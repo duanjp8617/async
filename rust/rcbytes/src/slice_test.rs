@@ -260,9 +260,31 @@ pub fn chunks_mut() {
         *i += 1;
         println!("{}", i);
     }
+
+    // I can not do something like this, [1,2,3,4,5] will be dropped
+    // let slice_mut = (&mut [1,2,3,4,5][..]).chunks_mut(3).next().unwrap();
+    // for i in slice_mut {
+    //     *i = *i + 1;
+    //     println!("{}", i)
+    // }
+
+    // I can do something like this
+    let slice_mut = &mut [1,2,3,4,5][..];
+    
+    // Note that chunk1 borrow from slice_mut, not from chunks
+    let chunk1 = slice_mut.chunks_mut(3).next().unwrap();
+
+    // Note that an attemp to create another chunk will fail, because
+    // the bck knows that slice_mut has been borrowed before.
+    // reference can be transitive (I don't know if this interpretation is correct)
+    // let chunk2 = slice_mut.chunks_mut(3).next().unwrap();    
+    for i in chunk1 {
+        *i += 1;
+        println!("{}", i);
+    }
 }
 
-pub fn split_mut() {
+pub fn split_at_mut() {
     let slice = &mut [1,2,3,4,5][..];
     let (fst, snd) = slice.split_at_mut(2);
     
@@ -279,4 +301,111 @@ pub fn split_mut() {
     print_slice(slice);
 
     slice[0] = slice[0] + 1;
+}
+
+pub fn split_mut() {
+    let slice = &mut [1,2,3,4,5][..];
+    let split = slice.split_mut(|i| {
+        *i == 3
+    });
+    for chunk in split {
+        println!("a new chunk");
+        for i in chunk {
+            *i += 1;
+            println!("{}", i);
+        }
+    }
+}
+
+pub fn sort_and_search() {
+    let mut vec = vec!(2,1,2,4,3,2,3,2,1,3,2,3,4,5);
+    println!("{:?}", &vec);
+    let slice = &mut vec[..];
+    slice.sort_unstable();
+    
+    let res = slice.binary_search(&3);
+    match res {
+        Ok(i) => {
+            println!("found {} from index {}", slice[i], i);
+        },
+        Err(i) => {
+            println!("please insert 3 at index {}", i);
+        }
+    }
+
+    let res = slice.binary_search(&109);
+    match res {
+        Ok(i) => {
+            println!("found {} from index {}", slice[i], i);
+        },
+        Err(i) => {
+            println!("please insert 109 at index {}", i);
+            vec.insert(i, 109);
+        }
+    }
+
+    let slice = &mut vec[..];
+    println!("printing the vec after insertion");
+    for i in slice {
+        println!("{}", i);
+    }
+}
+
+pub fn rotate_left() {
+    let slice = &mut [1,2,3,4,5][..];
+    slice.rotate_left(1);
+    println!("{:?}", slice);
+}
+
+fn manual_clone_from_slice<T : Clone>(dst : &mut [T], src : &[T]) {
+    assert!(dst.len() == src.len());
+    let len = dst.len();
+    for i in 0..len {
+        dst[i].clone_from(&src[i]);
+    }
+}
+
+pub fn clone_from_slice() {
+    let slice = &mut [1,2,3,4,5][..];
+    let another = &[2,3,4,5,6][..];
+    // slice.clone_from_slice(another);
+    manual_clone_from_slice(slice, another);
+    println!("{:?}", slice);
+}
+
+fn manual_copy_from_slice<T : Copy>(dst : &mut [T], src : &[T]) {
+    assert!(dst.len() == src.len());
+    let len = dst.len();
+    unsafe {
+        std::ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), len);
+    }
+}
+
+pub fn copy_from_slice() {
+    let slice = &mut [1,2,3,4,5][..];
+    let another = &[2,3,4,5,6][..];
+    // slice.copy_from_slice(another);
+    manual_copy_from_slice(slice, another);
+    println!("{:?}", slice);
+}
+
+pub fn align_to() {
+    let vec : [u8 ; 7] = [1,2,3,4,5,6,7];
+
+    let (one, two, three) = unsafe {(&vec[..]).align_to::<u16>()};
+    
+    println!("one");
+    for i in one {
+        println!("{}", i);
+    }
+
+    println!("two");
+    for i in two {
+        println!("{}", i);
+    }
+    
+    println!("three");
+    for i in three {
+        println!("{}", i);
+    }
 }
