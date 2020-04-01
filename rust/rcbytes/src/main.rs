@@ -112,4 +112,6 @@ fn main() {
     run(myiterator_test::count, "count");
     run(myiterator_test::last, "last");
     run(myiterator_test::for_each, "for_each");
+
+    // test
 }
