@@ -1,4 +1,4 @@
-use std::iter::{self, IntoIterator};
+use std::iter::{IntoIterator};
 use std::convert::TryFrom;
 
 pub fn three_iterators() {

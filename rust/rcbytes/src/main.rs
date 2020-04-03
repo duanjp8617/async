@@ -26,6 +26,8 @@ mod iterator_test;
 mod myiterator;
 mod myiterator_test;
 
+mod refcell_test;
+
 fn run<F>(f : F, func_name : &'static str) where F : Fn()->() {
     println!("begin {}", func_name);
     f();
@@ -113,5 +115,5 @@ fn main() {
     run(myiterator_test::last, "last");
     run(myiterator_test::for_each, "for_each");
 
-    // test
+    run(refcell_test::new, "new");
 }
