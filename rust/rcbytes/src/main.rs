@@ -4,6 +4,7 @@
 #![feature(iter_map_while)]
 #![feature(try_trait)]
 #![feature(never_type)]
+#![feature(cell_update)]
 
 mod myvec;
 mod myvec_test;
@@ -117,4 +118,10 @@ fn main() {
 
     run(refcell_test::new, "new");
     run(refcell_test::rc, "rc");
+    run(refcell_test::unsafe_cell1, "unsafe_cell1");
+    run(refcell_test::unsafe_cell2, "unsafe_cell2");
+    run(refcell_test::cell1, "cell1");
+    run(refcell_test::cell2, "cell2");
+    run(refcell_test::cell3, "cell3");
+    run(refcell_test::cell4, "cell4");
 }
