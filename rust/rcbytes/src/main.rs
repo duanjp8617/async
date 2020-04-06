@@ -116,4 +116,5 @@ fn main() {
     run(myiterator_test::for_each, "for_each");
 
     run(refcell_test::new, "new");
+    run(refcell_test::rc, "rc");
 }
