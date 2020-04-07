@@ -129,6 +129,8 @@ pub fn cell2() {
     }
 
     let mut_ref = cell1.get_mut();
+
+    println!("expecting 1, 1 : {}, {}", mut_ref.i, mut_ref.j);
     
     // the old do-not-work trick
     // let cell2 = Cell::new(Wtf {

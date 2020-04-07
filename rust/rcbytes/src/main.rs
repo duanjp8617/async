@@ -28,6 +28,8 @@ mod myiterator;
 mod myiterator_test;
 
 mod refcell_test;
+mod myrefcell;
+mod myrefcell_test;
 
 fn run<F>(f : F, func_name : &'static str) where F : Fn()->() {
     println!("begin {}", func_name);
@@ -132,4 +134,10 @@ fn main() {
     run(refcell_test::refcell6, "refcell6");
     run(refcell_test::refcell7, "refcell7");
     run(refcell_test::refcell8, "refcell8");
+
+    run(myrefcell_test::unsafe_cell1, "unsafe_cell1");
+    run(myrefcell_test::unsafe_cell_strictly_forbidden, "unsafe_cell_strictly_forbidden");
+    run(myrefcell_test::cell1, "cell1");
+    run(myrefcell_test::cell2, "cell2");
+    run(myrefcell_test::cell3, "cell3");
 }
