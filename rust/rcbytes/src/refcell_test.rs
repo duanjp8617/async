@@ -1,4 +1,4 @@
-use std::cell::{RefCell, UnsafeCell, Cell};
+use std::cell::{RefCell, UnsafeCell, Cell, Ref, RefMut};
 use std::rc::Rc;
 
 pub fn new() {
@@ -180,4 +180,230 @@ pub fn cell4() {
     slice2[3].set(8);
 
     println!("{:?}", slice1);
+}
+
+pub fn refcell1() {
+    let ref_cell1 = RefCell::new(Wtf{
+        i: 1,
+        j: 2,
+    });
+
+    let borrow1 = ref_cell1.borrow();
+    let borrow2 = ref_cell1.borrow();
+
+    println!("{}, {}", &borrow1.i, &borrow2.j);
+
+    // if we don't drop borrow1 and borrow2 here
+    // we will not be able to call into_inner, as 
+    // they will be dropped before the entire function
+    // returns and extend the borrow to ref_cell1 until
+    // the end of this function
+    drop(borrow1);  
+    drop(borrow2);
+    
+    let sth = ref_cell1.into_inner();
+    println!("{}, {}", sth.i, sth.j);
+    drop(sth);
+
+    println!("done");
+}
+
+pub fn refcell2() {
+    let ref_cell1 = RefCell::new(Wtf{
+        i: 1,
+        j: 2,
+    });
+
+    let borrow1 = ref_cell1.borrow();
+    let borrow2 = ref_cell1.borrow();
+
+    println!("{}, {}", &borrow1.i, &borrow2.j);
+
+    // if we don't drop borrow1 and borrow2 here
+    // the replace method will panic as it will try 
+    // to call borrow_mut
+    drop(borrow1);  
+    drop(borrow2);
+    
+    let sth = ref_cell1.replace(Wtf {
+        i: 3,
+        j: 4,
+    });
+    println!("{}, {}", sth.i, sth.j);
+    drop(sth);
+
+    println!("done");
+}
+
+pub fn refcell3() {
+    let ref_cell1 = RefCell::new(Wtf{
+        i: 1,
+        j: 2,
+    });
+
+    let borrow1 = ref_cell1.borrow();
+    let borrow2 = ref_cell1.borrow();
+
+    println!("{}, {}", &borrow1.i, &borrow2.j);
+
+    // if we don't drop borrow1 and borrow2 here
+    // the replace_with method will panic as it will try 
+    // to call borrow_mut
+    drop(borrow1);  
+    drop(borrow2);
+    
+    let sth = ref_cell1.replace_with(|mut_ref| {
+        mut_ref.i += 1;
+        mut_ref.j += 1;
+
+        Wtf {
+            i: mut_ref.i,
+            j: mut_ref.j,
+        }
+    });
+    println!("{}, {}", sth.i, sth.j);
+    drop(sth);
+
+    println!("done");
+}
+
+pub fn refcell4() {
+    let ref_cell1 = RefCell::new(Wtf{
+        i: 1,
+        j: 2,
+    });
+
+    let ref_cell2 = RefCell::new(Wtf{
+        i: 2,
+        j: 3,
+    });
+
+    let borrow1 = ref_cell1.borrow();
+    let borrow2 = ref_cell2.borrow();
+
+    println!("{}, {}", &borrow1.i, &borrow1.j);
+    println!("{}, {}", &borrow2.i, &borrow2.j);
+
+
+    // if we don't drop either of borrow1 and borrow2 here
+    // the swap method will panic as it will try 
+    // to call borrow_mut
+    drop(borrow1);  
+    drop(borrow2);
+    
+    ref_cell1.swap(&ref_cell2);
+
+    drop(ref_cell1.into_inner());
+    drop(ref_cell2.into_inner());
+    
+    println!("done");
+}
+
+pub fn refcell5() {
+    let mut refcell1 = RefCell::new(Wtf {
+        i: 1,
+        j: 2,
+    });
+
+    let ref_mut = refcell1.get_mut();
+    ref_mut.i = 5;
+    ref_mut.j = 5;
+
+    let borrow1 = refcell1.borrow();
+    let res = unsafe {refcell1.try_borrow_unguarded().unwrap()};
+
+    println!("{}, {}", &borrow1.i, &borrow1.j);
+    println!("{}, {}", &res.i, &res.j);
+
+    drop(borrow1);
+    let mut mut_borrow1 = refcell1.borrow_mut();
+    mut_borrow1.i = 1024;
+    mut_borrow1.j = 1024;
+
+    // You can easily break the promises of RefCell 
+    println!("We can still without dropping mut_borrow1, {}, {}", &res.i, &res.j);
+
+    mut_borrow1.i = 1026;
+    mut_borrow1.j = 1026;
+}
+
+pub fn refcell6() {
+    let cell1 = RefCell::new([1,2,3,4,5,6]);
+    let borrow1 = cell1.borrow();
+
+    let borrow2 = Ref::map(borrow1, |orig| {
+        &orig[..]
+    });
+
+    println!("first");
+    for i in borrow2.iter() {
+        println!("{}", i);
+    }
+
+    println!("second");
+    let (fst, snd) = Ref::map_split(borrow2, |orig| {
+        orig.split_at(2)
+    });
+
+    for i in fst.iter() {
+        println!("{}", i);
+    }
+
+    for i in snd.iter() {
+        println!("{}", i);
+    }
+}
+
+pub fn refcell7() {
+    let cell1 = RefCell::new([1,2,3,4,5,6]);
+    let borrow1 = cell1.borrow_mut();
+
+    let mut borrow2 = RefMut::map(borrow1, |orig| {
+        &mut orig[..]
+    });
+
+    println!("first");
+    for i in borrow2.iter_mut() {
+        *i += 1;
+        println!("{}", i);
+    }
+
+    println!("second");
+    let (mut fst, mut snd) = RefMut::map_split(borrow2, |orig| {
+        orig.split_at_mut(2)
+    });
+
+    for i in fst.iter_mut() {
+        *i += 1;
+        println!("{}", i);
+    }
+
+    for i in snd.iter_mut() {
+        *i += 1;
+        println!("{}", i);
+    }
+
+    drop(fst);
+    drop(snd);
+
+    println!("final");
+    for i in cell1.borrow().iter() {
+        println!("{}", i);
+    }
+}
+
+pub fn refcell8() {
+    let cell1 = RefCell::new([1,2,3,4,5,6]);
+
+    // This doesn't work, as Rust will complain about temporary variable being dropped
+    // let iter = cell1.borrow().iter();
+
+    let sth = cell1.borrow();
+    let iter = sth.iter();
+
+    // cell1.borrow_mut()[2] = 1024;
+
+    for i in iter {
+        println!("{}", i);
+    }
 }

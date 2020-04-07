@@ -124,4 +124,12 @@ fn main() {
     run(refcell_test::cell2, "cell2");
     run(refcell_test::cell3, "cell3");
     run(refcell_test::cell4, "cell4");
+    run(refcell_test::refcell1, "refcell1");
+    run(refcell_test::refcell2, "refcell2");
+    run(refcell_test::refcell3, "refcell3");
+    run(refcell_test::refcell4, "refcell4");
+    run(refcell_test::refcell5, "refcell5");
+    run(refcell_test::refcell6, "refcell6");
+    run(refcell_test::refcell7, "refcell7");
+    run(refcell_test::refcell8, "refcell8");
 }
