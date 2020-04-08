@@ -1,4 +1,5 @@
-use crate::myrefcell::{MyUnsafeCell, MyCell};
+use crate::myrefcell::{MyUnsafeCell, MyCell, MyRef, MyRefMut, MyRefCell};
+use std::rc::Rc;
 
 struct Wtf {
     i : i32,
@@ -135,4 +136,66 @@ pub fn cell3() {
 
     println!("{}, {}", updated_obj.i, updated_obj.j);
     println!("{}, {}", cell1.get().i, cell1.get().j);
+}
+
+pub fn new() {
+    println!("test");
+    let cell = MyRefCell::new(1024);
+    let borrow = cell.borrow();
+    println!("{}", *borrow);
+    drop(borrow);
+    let mut borrow_mut = cell.borrow_mut();
+    *borrow_mut = 1025;
+    println!("{}", *borrow_mut);
+}
+
+fn mutate_rc_refcell(item : Rc<MyRefCell<i32>>) {
+    let mut mut_ref = item.borrow_mut();
+    *mut_ref += 1;
+}
+
+pub fn rc() {
+    let item = Rc::new(MyRefCell::new(1024));
+    let item1 = item.clone();
+    let item3 = item.clone();
+
+    // if we try to do a mutable borrow here
+    // then the program will panic
+    // let mut mut_ref = item.borrow_mut();
+
+    mutate_rc_refcell(item1);
+    mutate_rc_refcell(item3);
+
+    {
+        let mut mut_ref = item.borrow_mut();
+        *mut_ref += 1;
+    }
+
+    println!("should be 1027, {}", *item.borrow());
+}
+
+pub fn map() {
+    let item = MyRefCell::new(Wtf{i: 1, j: 2});
+
+    {
+        let borrow1 = item.borrow();
+        let borrow2 = MyRef::map(borrow1, |val| {
+            &val.i
+        });
+
+        println!("should be 1 {}", *borrow2);
+    }
+
+    {
+        let borrow1 = item.borrow_mut();
+        let borrow2 = MyRefMut::map(borrow1, |mut_val| {
+            mut_val.i += 1;
+            &mut mut_val.i
+        });
+
+        println!("should be 2, {}", *borrow2);
+    }
+
+    drop(item);
+    println!("done");
 }

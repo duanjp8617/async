@@ -140,4 +140,7 @@ fn main() {
     run(myrefcell_test::cell1, "cell1");
     run(myrefcell_test::cell2, "cell2");
     run(myrefcell_test::cell3, "cell3");
+    run(myrefcell_test::new, "new");
+    run(myrefcell_test::rc, "rc");
+    run(myrefcell_test::map, "map");
 }
