@@ -1,4 +1,4 @@
-use crate::mybox::MyBox;
+use crate::my::mybox::MyBox;
 
 #[derive(Clone)]
 struct Wtf {

@@ -1,4 +1,4 @@
-use crate::myvec;
+use crate::my::myvec;
 
 struct Wtf {
     x : u8,

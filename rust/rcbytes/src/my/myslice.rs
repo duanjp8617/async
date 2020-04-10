@@ -3,7 +3,7 @@ use std::cmp;
 use std::ptr;
 use std::mem;
 
-use crate::myvec::MyVec;
+use super::myvec::MyVec;
 
 
 pub struct MySlice<'a , T : 'a> {

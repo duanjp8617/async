@@ -1,5 +1,5 @@
-use crate::myslice::{MySlice, MySliceMut, MimicChunksMut};
-use crate::myvec::MyVec;
+use crate::my::myslice::{MySlice, MySliceMut, MimicChunksMut};
+use crate::my::myvec::MyVec;
 
 pub fn test_myslice() {
     let mut ls = MyVec::new();

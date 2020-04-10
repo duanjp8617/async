@@ -1,4 +1,4 @@
-use crate::myiterator::MyIterator;
+use crate::my::myiterator::MyIterator;
 
 use std::convert::From;
 

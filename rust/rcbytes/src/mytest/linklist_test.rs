@@ -1,4 +1,4 @@
-use crate::linklist;
+use crate::my::linklist;
 
 struct Wtf {
     x : u8,

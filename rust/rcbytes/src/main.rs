@@ -6,30 +6,13 @@
 #![feature(never_type)]
 #![feature(cell_update)]
 
-mod myvec;
-mod myvec_test;
+mod stdtest;
+use crate::stdtest::{box_test, iterator_test, refcell_test, slice_test};
 
-mod linklist;
-mod linklist_test;
+mod my;
 
-mod ptrlist;
-mod ptrlist_test;
-
-mod slice_test;
-mod myslice;
-mod myslice_test;
-
-mod box_test;
-mod mybox;
-mod mybox_test;
-
-mod iterator_test;
-mod myiterator;
-mod myiterator_test;
-
-mod refcell_test;
-mod myrefcell;
-mod myrefcell_test;
+mod mytest;
+use crate::mytest::{linklist_test, mybox_test, myiterator_test, myrefcell_test, myslice_test, myvec_test, ptrlist_test};
 
 fn run<F>(f : F, func_name : &'static str) where F : Fn()->() {
     println!("begin {}", func_name);

@@ -1,4 +1,4 @@
-use crate::ptrlist;
+use crate::my::ptrlist;
 
 struct Wtf {
     x : u8,
