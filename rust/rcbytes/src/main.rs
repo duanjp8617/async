@@ -7,7 +7,7 @@
 #![feature(cell_update)]
 
 mod stdtest;
-use crate::stdtest::{box_test, iterator_test, refcell_test, slice_test};
+use crate::stdtest::{box_test, iterator_test, refcell_test, slice_test, rc_test};
 
 mod my;
 
@@ -126,4 +126,7 @@ fn main() {
     run(myrefcell_test::new, "new");
     run(myrefcell_test::rc, "rc");
     run(myrefcell_test::map, "map");
+
+    run(rc_test::try_unwrap, "try_unwrap");
+    run(rc_test::from_raw_into_raw, "from_raw_into_raw");
 }
