@@ -129,4 +129,7 @@ fn main() {
 
     run(rc_test::try_unwrap, "try_unwrap");
     run(rc_test::from_raw_into_raw, "from_raw_into_raw");
+    run(rc_test::downgrade_upgrade, "downgrade_upgrade");
+    run(rc_test::test_circle, "test_circle");
+    run(rc_test::circle_breaker, "circle_breaker");
 }
