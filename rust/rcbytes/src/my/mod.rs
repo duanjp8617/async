@@ -5,3 +5,4 @@ pub mod myrefcell;
 pub mod myslice;
 pub mod myvec;
 pub mod ptrlist;
+pub mod rc;

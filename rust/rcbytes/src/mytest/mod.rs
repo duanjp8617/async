@@ -5,3 +5,4 @@ pub mod myrefcell_test;
 pub mod myslice_test;
 pub mod myvec_test;
 pub mod ptrlist_test;
+pub mod rc_test;

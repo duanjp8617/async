@@ -132,4 +132,9 @@ fn main() {
     run(rc_test::downgrade_upgrade, "downgrade_upgrade");
     run(rc_test::test_circle, "test_circle");
     run(rc_test::circle_breaker, "circle_breaker");
+
+    run(mytest::rc_test::test_rc, "test_rc");
+    run(mytest::rc_test::downgrade_upgrade, "downgrade_upgrade");
+    run(mytest::rc_test::test_circle, "test_circle");
+    run(mytest::rc_test::circle_breaker, "circle_breaker");
 }
