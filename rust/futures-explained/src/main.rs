@@ -10,7 +10,10 @@ mod generator3;
 
 mod pin1;
 mod pin2;
+mod pin3;
+
+mod future_executor1;
 
 fn main() {
-    pin2::run1();
+    future_executor1::run();
 }
