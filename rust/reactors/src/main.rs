@@ -28,6 +28,7 @@
 // A single-thread reactor motivated by fahrenheit, that only supports 
 // async sleep.  
 mod reactor1;
+mod reactor2;
 
 fn main() {
     reactor1::launch();
