@@ -353,6 +353,7 @@ fn spawn<F : Future<Output = ()> + 'static + Send>(f : F) {
 }
 
 // Desugar the async blocks
+
 #[allow(dead_code)]
 async fn sleep_sub_task(id : i32) {
     println!("sleep sub-task {} is created", id);
@@ -360,6 +361,7 @@ async fn sleep_sub_task(id : i32) {
     println!("sleep sub-task {} finishes", id);
 }
 
+// Desugared version of sleep_sub_task.
 enum SleepSubTask {
     Entry(i32),
     Sleep(i32, Timeout),
@@ -375,8 +377,19 @@ impl Future for SleepSubTask {
         loop {
             match self_mut {
                 SleepSubTask::Entry(id) => {
+                    // The entry point of the SleepSubTask.
+
+                    // Print the sub-task information, exactly the same as 
+                    // sleep_sub_task.
                     println!("sleep sub-task {} is created", *id);
+                    // Create the Timeout and sleep for 10s, similar with 
+                    // sleep_sub_task, except that the created Timeout is 
+                    // assigned to the to variable.
                     let mut to = Timeout::new(Duration::from_secs(10));
+                    // Additional code that is hidden away in sleep_sub_task,
+                    // which polls the to, switches the internal state of 
+                    // SleepSubTask and returns Pending if the task needs
+                    // suspention.
                     match Future::poll(Pin::new(&mut to), &mut *ctx) {
                         Poll::Ready(()) => {
                             *self_mut = SleepSubTask::PostSleep(*id);
@@ -389,6 +402,10 @@ impl Future for SleepSubTask {
                     }
                 },
                 SleepSubTask::Sleep(id, to) => {
+                    // Additional code that is hidden away in sleep_sub_task,
+                    // which polls the to, switches the internal state of 
+                    // SleepSubTask and returns Pending if the task needs
+                    // suspention.
                     match Future::poll(Pin::new(to), &mut *ctx) {
                         Poll::Ready(()) => {
                             *self_mut = SleepSubTask::PostSleep(*id);
@@ -400,7 +417,12 @@ impl Future for SleepSubTask {
                     }
                 },
                 SleepSubTask::PostSleep(id) => {
+                    // Print that the sub-task has ended sleep, exactly the same as 
+                    // sleep_sub_task.
                     println!("sleep sub-task {} finishes", *id);
+                    // Additional code that is hidden away in sleep_sub_task,
+                    // which returns Poll::Ready to indicate the async task 
+                    // has finished execution.
                     return Poll::Ready(());
                 }
             }
@@ -418,6 +440,7 @@ async fn sleep_task() {
     }
 }
 
+// Desugared version of sleep task.
 enum SleepTask {
     Entry,
     PreSleep(i32),
@@ -433,16 +456,32 @@ impl Future for SleepTask {
         loop { 
             match self_mut {
                 SleepTask::Entry => {
+                    // Entry point of SleepTask, which directly 
+                    // jump to the PreSleep state. Note that the 
+                    // match expression is surrounded by a loop, so we
+                    // can use continue to match on the switched state 
+                    // again
                     *self_mut = SleepTask::PreSleep(1);
                     continue;
                 },
                 SleepTask::PreSleep(i) => {
                     if *i > 10 {
+                        // We have run the loop for 10 times, 
+                        // terminate the task and return Poll::Ready                        
                         return Poll::Ready(());
                     }
                     else {
+                        // Print that the task needs to sleep for 1 s. This is
+                        // exactly the same as the sleep_task.
                         println!("main task sleep for 1s");
+                        // Create a Timeout to suspend the task for 1s. This is 
+                        // similar as in the sleep_task, except that we assign the 
+                        // created Timeout to a variable.
                         let mut to = Timeout::new(Duration::from_secs(1));
+                        // Additional code that is hiden in sleep_task, which 
+                        // polls the to. Depending on the result, the task may
+                        // immediately switch to AfterSleep state, or suspend 
+                        // execution by returning Poll::Pending.
                         match Future::poll(Pin::new(&mut to), &mut *ctx) {
                             Poll::Ready(_) => {
                                 *self_mut = SleepTask::AfterSleep(*i);
@@ -456,6 +495,13 @@ impl Future for SleepTask {
                     }
                 },
                 SleepTask::Sleep(i, to) => {
+                    // Additional code that is hiden in sleep_task, which 
+                    // polls the to. Depending on the result, the task may
+                    // immediately switch to AfterSleep state, or suspend 
+                    // execution by returning Poll::Pending. 
+                    // Note that this should be called when the Timer associated
+                    // with the task expires and executor schedules the task to 
+                    // run again by calling task.poll.
                     match Future::poll(Pin::new(to), &mut *ctx) {
                         Poll::Ready(_) => {
                             *self_mut = SleepTask::AfterSleep(*i);
@@ -467,8 +513,11 @@ impl Future for SleepTask {
                     }
                 }
                 SleepTask::AfterSleep(i) => {
+                    // Create a new sleep sub task. This is exactly 
+                    // the same as in sleep_task.
                     println!("create sleep sub task {}", *i);
                     spawn(SleepSubTask::Entry(*i));
+                    // Change the state to PreSleep to continue the loop
                     *self_mut = SleepTask::PreSleep(*i + 1);
                     continue;
                 },
