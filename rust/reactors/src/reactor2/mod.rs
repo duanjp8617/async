@@ -353,12 +353,62 @@ fn spawn<F : Future<Output = ()> + 'static + Send>(f : F) {
 }
 
 // Desugar the async blocks
+#[allow(dead_code)]
 async fn sleep_sub_task(id : i32) {
     println!("sleep sub-task {} is created", id);
     Timeout::new(Duration::from_secs(10)).await;
     println!("sleep sub-task {} finishes", id);
 }
 
+enum SleepSubTask {
+    Entry(i32),
+    Sleep(i32, Timeout),
+    PostSleep(i32),
+}
+
+impl Future for SleepSubTask {
+    type Output = ();
+
+    fn poll(self : Pin<&mut Self>, ctx : &mut Context<'_>) -> Poll<Self::Output> {
+        let self_mut = unsafe {Pin::get_unchecked_mut(self)};
+        
+        loop {
+            match self_mut {
+                SleepSubTask::Entry(id) => {
+                    println!("sleep sub-task {} is created", *id);
+                    let mut to = Timeout::new(Duration::from_secs(10));
+                    match Future::poll(Pin::new(&mut to), &mut *ctx) {
+                        Poll::Ready(()) => {
+                            *self_mut = SleepSubTask::PostSleep(*id);
+                            continue;
+                        },
+                        Poll::Pending => {
+                            *self_mut = SleepSubTask::Sleep(*id, to);
+                            return Poll::Pending;
+                        },
+                    }
+                },
+                SleepSubTask::Sleep(id, to) => {
+                    match Future::poll(Pin::new(to), &mut *ctx) {
+                        Poll::Ready(()) => {
+                            *self_mut = SleepSubTask::PostSleep(*id);
+                            continue;
+                        },
+                        Poll::Pending => {
+                            return Poll::Pending;
+                        },
+                    }
+                },
+                SleepSubTask::PostSleep(id) => {
+                    println!("sleep sub-task {} finishes", *id);
+                    return Poll::Ready(());
+                }
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
 async fn sleep_task() {
     for i in 1..11 {
         println!("main task sleep for 1s");
@@ -371,8 +421,8 @@ async fn sleep_task() {
 enum SleepTask {
     Entry,
     PreSleep(i32),
-    AfterSleep(i32, Timeout),
-    Exit,
+    Sleep(i32, Timeout),
+    AfterSleep(i32),
 }
 
 impl Future for SleepTask {
@@ -386,46 +436,47 @@ impl Future for SleepTask {
                     *self_mut = SleepTask::PreSleep(1);
                     continue;
                 },
-                SleepTask::AfterSleep(i, to) => {
-                    match Future::poll(Pin::new(to), &mut *ctx) {
-                        Poll::Ready(_) => {
-
-                        },
-                        Poll::Pending => {
-                            return Poll::Pending;
-                        }
-                    };
-                    println!("create sleep sub task {}", *i);
-                    spawn(sleep_sub_task(*i));
-                    *self_mut = SleepTask::PreSleep(*i + 1);
-                },
                 SleepTask::PreSleep(i) => {
-                    if *i > 11 {
-                        *self_mut = SleepTask::Exit;
+                    if *i > 10 {
+                        return Poll::Ready(());
                     }
                     else {
                         println!("main task sleep for 1s");
                         let mut to = Timeout::new(Duration::from_secs(1));
                         match Future::poll(Pin::new(&mut to), &mut *ctx) {
                             Poll::Ready(_) => {
-                                *self_mut = SleepTask::AfterSleep(*i, to);
-                                continue
+                                *self_mut = SleepTask::AfterSleep(*i);
+                                continue;
                             },
                             Poll::Pending => {
-                                *self_mut = SleepTask::AfterSleep(*i, to);
+                                *self_mut = SleepTask::Sleep(*i, to);
                                 return Poll::Pending;
                             }
                         }
                     }
                 },
-                SleepTask::Exit => {
-                    return Poll::Ready(());
+                SleepTask::Sleep(i, to) => {
+                    match Future::poll(Pin::new(to), &mut *ctx) {
+                        Poll::Ready(_) => {
+                            *self_mut = SleepTask::AfterSleep(*i);
+                            continue;
+                        },
+                        Poll::Pending => {
+                            return Poll::Pending;
+                        }
+                    }
                 }
+                SleepTask::AfterSleep(i) => {
+                    println!("create sleep sub task {}", *i);
+                    spawn(SleepSubTask::Entry(*i));
+                    *self_mut = SleepTask::PreSleep(*i + 1);
+                    continue;
+                },
             }
         }   
     }
 }
 
 pub fn launch() {
-    run(sleep_task());
+    run(SleepTask::Entry);
 }
