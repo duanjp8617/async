@@ -10,6 +10,18 @@ edition = "2018"
 name = "test1"
 path = "src/test1.rs"
 
+[[bin]]
+name = "test2"
+path = "src/test2.rs"
+
+[[bin]]
+name = "test3"
+path = "src/test3.rs"
+
+[[bin]]
+name = "test4"
+path = "src/test4.rs"
+
 [dependencies]
 
 tokio = { version = "0.2", features = ["macros", "time"] }
@@ -19,6 +31,7 @@ tower-service = "0.3"
 
 futures-core = "0.3"
 futures-util = "0.3"
+futures-task = "0.3"
 
 hdrhistogram = "6.0"
 pin-project = "0.4.17"
