@@ -22,6 +22,12 @@ path = "src/test3.rs"
 name = "test4"
 path = "src/test4.rs"
 
+# Some tests on box
+
+[[bin]]
+name = "test_box1"
+path = "src/test_box1.rs"
+
 [dependencies]
 
 tokio = { version = "0.2", features = ["macros", "time"] }

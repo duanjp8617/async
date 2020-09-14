@@ -8,6 +8,9 @@ use std::future::Future;
 use std::result::Result;
 use std::task::{Poll, Context};
 
+use std::sync::Arc;
+use futures_task::{ArcWake};
+
 /// Delay the response for a certain amount of time 
 struct DelayedResponse {
     delay: time::Delay,
@@ -32,6 +35,29 @@ impl Future for DelayedResponse {
         }
     }
 }
+
+
+/// The following piece of code tests whether polling a Future trait object is equivalent to 
+/// polling the underlying Future object
+// struct WakerImpl {
+//     task_id : usize,
+// }
+
+// impl ArcWake for WakerImpl {
+//     fn wake_by_ref(arc_self : &Arc<Self>) {
+//        // Do Nothing
+//     }
+// }
+
+// fn poll_delayed_response(f: *mut (dyn Future<Output = Result<Response<Vec<u8>>, http::Error>> + 'static)) 
+//     -> Poll<Result<Response<Vec<u8>>, http::Error>>{
+
+//     let waker = futures_task::waker(Arc::new(WakerImpl{task_id : 5}));
+//     let mut ctx = Context::from_waker(& waker);
+//     let res = unsafe{ Future::poll(Pin::new_unchecked(&mut *f), &mut ctx) };
+     
+//     res
+// }
 
 struct EchoService;
 
