@@ -50,7 +50,7 @@ unsafe fn remove_drop_lifetime<'a, T>(ptr: unsafe fn (*mut (dyn Future<Output = 
 impl<'a, T> LocalFutureObj<'a, T> {
     /// Create a `LocalFutureObj` from a custom trait object representation.
     #[inline]
-    pub fn new<F: UnsafeFutureObj<'a, T> + 'a>(f: F) -> LocalFutureObj<'a, T> {
+    pub fn new<F: UnsafeFutureObj<'a, T>>(f: F) -> LocalFutureObj<'a, T> {
         LocalFutureObj {
             future: unsafe { remove_future_lifetime(f.into_raw()) },
             drop_fn: unsafe { remove_drop_lifetime(F::drop) },
@@ -121,10 +121,7 @@ unsafe impl<T> Send for FutureObj<'_, T> {}
 impl<'a, T> FutureObj<'a, T> {
     /// Create a `FutureObj` from a custom trait object representation.
     #[inline]
-    pub fn new<F: UnsafeFutureObj<'a, T> + Send + 'a>(f: F) -> FutureObj<'a, T> {
-    // pub fn new<F: UnsafeFutureObj<'a, T> + Send + 'a>(f: F) -> FutureObj<'a, T> {
-    // To fix the problem introduced in line 156, we need to annotate the lifetime of 
-    // F to match the lifetime annotation of LocalFutureObj::new
+    pub fn new<F: UnsafeFutureObj<'a, T> + Send>(f: F) -> FutureObj<'a, T> {
         FutureObj(LocalFutureObj::new(f))
     }
 }
@@ -155,15 +152,7 @@ impl<T> Future for FutureObj<'_, T> {
 ///
 /// See the safety notes on individual methods for what guarantees an
 /// implementor must provide.
-
 pub unsafe trait UnsafeFutureObj<'a, T> {
-// pub unsafe trait UnsafeFutureObj<'a, T>: 'a {
-// If you remove the lifetime bound on UnsafeFutureObj trait, then 
-// LocalFutureObj can not be constructed from an UnsafeFutureObj trait object,
-// because LocalFutureObj needs an UnsafeFutureObj to live as long as 'a.
-// Without the lifetime bound on UnsafeFutureObj trait definition, we can not infer
-// that any UnsafeFutureObj trait object lives for 'a
-    
     /// Convert an owned instance into a (conceptually owned) fat pointer.
     ///
     /// # Safety
@@ -197,8 +186,6 @@ pub unsafe trait UnsafeFutureObj<'a, T> {
     unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a));
 }
 
-// Under any circumstances, we must ensure that any object that implements UnsafeFutureObj
-// has a lifetime of a'
 unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for Box<F>
     where F: Future<Output = T> + 'a
 {
@@ -208,6 +195,18 @@ unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for Box<F>
 
     unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
         drop(Box::from_raw(ptr as *mut F))
+    }
+}
+
+
+unsafe impl<'a, T> UnsafeFutureObj<'a, T> for Box<dyn Future<Output = T> + 'a> 
+{
+    fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
+        Box::into_raw(self)
+    }
+
+    unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
+        drop(Box::from_raw(ptr));
     }
 }
 
@@ -265,6 +264,7 @@ async fn main() {
             let resp_fut = echo.call(&req);
             // drop(req);
             let resp = resp_fut.await.unwrap();
+            drop(req);
             resp_sender.send(resp).await.unwrap();
         }
     };
