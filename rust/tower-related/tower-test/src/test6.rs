@@ -212,6 +212,19 @@ unsafe impl<'a, T> UnsafeFutureObj<'a, T> for Box<dyn Future<Output = T> + 'a>
 
 struct EchoService;
 
+fn convert<'a, T>(req: &'a Request<Vec<u8>>) -> Box<dyn Future<Output = Result<Response<Vec<u8>>, http::Error>> + Send + 'a> {
+    let async_closure = async move {
+        time::delay_for(time::Duration::new(1, 0)).await;
+        let resp = Response::builder()
+            .status(StatusCode::OK)
+            .body(req.body().clone())
+            .unwrap();
+        
+        Ok(resp)
+    };
+    Box::new(async_closure)
+}
+
 impl<'a> Service<&'a Request<Vec<u8>>> for EchoService {
     type Response = Response<Vec<u8>>;
     type Error = http::Error;
@@ -222,16 +235,7 @@ impl<'a> Service<&'a Request<Vec<u8>>> for EchoService {
     }
 
     fn call(&mut self, req: &'a Request<Vec<u8>>) -> Self::Future {
-        let async_closure = async move {
-            time::delay_for(time::Duration::new(1, 0)).await;
-            let resp = Response::builder()
-                .status(StatusCode::OK)
-                .body(req.body().clone())
-                .unwrap();
-            
-            Ok(resp)
-        };
-        FutureObj::new(Box::new(async_closure))
+        FutureObj::new(convert(req))
     }
 }
 
