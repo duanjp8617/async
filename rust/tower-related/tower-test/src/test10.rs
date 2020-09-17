@@ -51,7 +51,34 @@ impl Service<Request<Vec<u8>>> for EchoService {
     }
 }
 
-struct TimeoutService;
+struct TimeoutService<S> {
+    inner: S,
+    duration: time::Duration,
+}
+
+impl<S, Request> Service<Request> for TimeoutService<S> 
+    where 
+        S: Service<Request> + Send,
+        S::Future: Send + 'static
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = FutureObj<'static, Result<Self::Response, Self::Error>>;
+
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Request) -> Self::Future {
+        let resp = self.inner.call(req);
+        let duration_copy = self.duration;
+        
+        FutureObj::new(Box::new(async move {
+            time::delay_for(duration_copy).await;
+            resp.await
+        }))
+    }
+}
 
 // impl Service<time::Duration> for TimeoutService {
 //     type Response = ();
