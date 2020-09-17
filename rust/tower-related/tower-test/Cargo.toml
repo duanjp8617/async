@@ -31,6 +31,18 @@ path = "src/test5.rs"
 name = "test6"
 path = "src/test6.rs"
 
+[[bin]]
+name = "test7"
+path = "src/test7.rs"
+
+[[bin]]
+name = "test8"
+path = "src/test8.rs"
+
+[[bin]]
+name = "test9"
+path = "src/test9.rs"
+
 [dependencies]
 
 tokio = { version = "0.2", features = ["macros", "time"] }
