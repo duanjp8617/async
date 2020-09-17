@@ -6,6 +6,10 @@ use tower::Service;
 
 use std::result::Result;
 
+// use std::task::{Context, Poll};
+// use std::future::Future;
+// use futures_task::FutureObj;
+
 use core::{
     mem,
     fmt,
@@ -50,7 +54,7 @@ unsafe fn remove_drop_lifetime<'a, T>(ptr: unsafe fn (*mut (dyn Future<Output = 
 impl<'a, T> LocalFutureObj<'a, T> {
     /// Create a `LocalFutureObj` from a custom trait object representation.
     #[inline]
-    pub fn new<F: UnsafeFutureObj<'a, T>>(f: F) -> LocalFutureObj<'a, T> {
+    pub fn new<F: UnsafeFutureObj<'a, T> + 'a>(f: F) -> LocalFutureObj<'a, T> {
         LocalFutureObj {
             future: unsafe { remove_future_lifetime(f.into_raw()) },
             drop_fn: unsafe { remove_drop_lifetime(F::drop) },
@@ -152,7 +156,7 @@ impl<T> Future for FutureObj<'_, T> {
 ///
 /// See the safety notes on individual methods for what guarantees an
 /// implementor must provide.
-pub unsafe trait UnsafeFutureObj<'a, T> {
+pub unsafe trait UnsafeFutureObj<'a, T>: 'a {
     /// Convert an owned instance into a (conceptually owned) fat pointer.
     ///
     /// # Safety
@@ -199,20 +203,30 @@ unsafe impl<'a, T, F> UnsafeFutureObj<'a, T> for Box<F>
 }
 
 
-unsafe impl<'a, T> UnsafeFutureObj<'a, T> for Box<dyn Future<Output = T> + 'a> 
-{
+
+unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T> for Box<dyn Future<Output = T> + 'a> {
     fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
         Box::into_raw(self)
     }
 
     unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
-        drop(Box::from_raw(ptr));
+        drop(Box::from_raw(ptr))
+    }
+}
+
+unsafe impl<'a, T: 'a> UnsafeFutureObj<'a, T> for Box<dyn Future<Output = T> + Send + 'a> {
+    fn into_raw(self) -> *mut (dyn Future<Output = T> + 'a) {
+        Box::into_raw(self)
+    }
+
+    unsafe fn drop(ptr: *mut (dyn Future<Output = T> + 'a)) {
+        drop(Box::from_raw(ptr))
     }
 }
 
 struct EchoService;
 
-fn convert<'a, T>(req: &'a Request<Vec<u8>>) -> Box<dyn Future<Output = Result<Response<Vec<u8>>, http::Error>> + Send + 'a> {
+fn convert<'a>(req: &'a Request<Vec<u8>>) -> Box<dyn Future<Output = Result<Response<Vec<u8>>, http::Error>> + Send + 'a> {
     let async_closure = async move {
         time::delay_for(time::Duration::new(1, 0)).await;
         let resp = Response::builder()
@@ -235,6 +249,15 @@ impl<'a> Service<&'a Request<Vec<u8>>> for EchoService {
     }
 
     fn call(&mut self, req: &'a Request<Vec<u8>>) -> Self::Future {
+        // let async_closure = async move {
+        //     time::delay_for(time::Duration::new(1, 0)).await;
+        //     let resp = Response::builder()
+        //         .status(StatusCode::OK)
+        //         .body(req.body().clone())
+        //         .unwrap();
+            
+        //     Ok(resp)
+        // };
         FutureObj::new(convert(req))
     }
 }
@@ -268,7 +291,7 @@ async fn main() {
             let resp_fut = echo.call(&req);
             // drop(req);
             let resp = resp_fut.await.unwrap();
-            drop(req);
+            // drop(req);
             resp_sender.send(resp).await.unwrap();
         }
     };
