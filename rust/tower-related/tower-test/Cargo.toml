@@ -47,9 +47,18 @@ path = "src/test9.rs"
 name = "test10"
 path = "src/test10.rs"
 
+[[bin]]
+name = "test11"
+path = "src/test11.rs"
+
+[[bin]]
+name = "test12"
+path = "src/test12.rs"
+
+
 [dependencies]
 
-tokio = { version = "0.2", features = ["macros", "time"] }
+tokio = { version = "0.2", features = ["full"] }
 
 tower = "0.3"
 tower-service = "0.3"
