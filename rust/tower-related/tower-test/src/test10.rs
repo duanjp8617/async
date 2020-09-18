@@ -51,6 +51,24 @@ impl Service<Request<Vec<u8>>> for EchoService {
     }
 }
 
+/// Layer 1:
+
+struct TimeoutLayer {
+    duration: time::Duration,
+}
+
+impl<S> Layer<S> for TimeoutLayer 
+{
+    type Service = TimeoutService<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        TimeoutService {
+            inner: inner,
+            duration: self.duration,
+        }
+    }
+}
+
 struct TimeoutService<S> {
     inner: S,
     duration: time::Duration,
@@ -58,7 +76,7 @@ struct TimeoutService<S> {
 
 impl<S, Request> Service<Request> for TimeoutService<S> 
     where 
-        S: Service<Request> + Send,
+        S: Service<Request>,
         S::Future: Send + 'static
 {
     type Response = S::Response;
@@ -77,6 +95,46 @@ impl<S, Request> Service<Request> for TimeoutService<S>
             time::delay_for(duration_copy).await;
             resp.await
         }))
+    }
+}
+
+/// Layer 2
+
+struct LogLayer<'a> {
+    log_str: &'a str,
+}
+
+impl<'a, S> Layer<S> for LogLayer<'a> 
+{
+    type Service = LogService<'a, S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        LogService {
+            inner: inner,
+            log_str: self.log_str
+        }
+    }
+}
+
+struct LogService<'a, S> {
+    inner: S,
+    log_str: &'a str,
+}
+
+impl<'a, S, Request> Service<Request> for LogService<'a, S> 
+    where S: Service<Request>
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Request) -> Self::Future {
+        println!("Service {} is processing an request", self.log_str);
+        self.inner.call(req)
     }
 }
 
@@ -108,10 +166,16 @@ async fn main() {
     };
 
     let mock_server = async move {
-        let mut echo = EchoService{};
+        let echo = EchoService{};
+        let delayed_echo = TimeoutLayer{
+            duration: time::Duration::new(1, 0)
+        }.layer(echo);
+        let mut log_delayed_echo = LogLayer{
+            log_str: "Echo",
+        }.layer(delayed_echo);
         for _ in 0..iter_num {
             let req = req_receiver.recv().await.unwrap();
-            let resp = echo.call(req).await.unwrap();
+            let resp = log_delayed_echo.call(req).await.unwrap();
             resp_sender.send(resp).await.unwrap();
         }
     };
