@@ -438,12 +438,16 @@ where
     }
 
     pub fn write_head(&mut self, head: MessageHead<T::Outgoing>, body: Option<BodyLength>) {
+        // info!("Conn {}: write_head", self.id);
         if let Some(encoder) = self.encode_head(head, body) {
             self.state.writing = if !encoder.is_eof() {
+                info!("Conn {}: changing state to Writing::Body(encoder)", self.id);
                 Writing::Body(encoder)
             } else if encoder.is_last() {
+                info!("Conn {}: changing state to Writing::Closed", self.id);
                 Writing::Closed
             } else {
+                info!("Conn {}: changing state to Writing::KeepAlive", self.id);
                 Writing::KeepAlive
             };
         }
@@ -453,6 +457,7 @@ where
         if let Some(encoder) =
             self.encode_head(head, Some(BodyLength::Known(body.remaining() as u64)))
         {
+            info!("Conn {}: write full message", self.id);
             let is_last = encoder.is_last();
             // Make sure we don't write a body if we weren't actually allowed
             // to do so, like because its a HEAD request.

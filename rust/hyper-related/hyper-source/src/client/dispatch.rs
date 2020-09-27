@@ -74,11 +74,12 @@ impl<T, U> Sender<T, U> {
         }
     }
 
-    pub fn try_send(&mut self, val: T) -> Result<RetryPromise<T, U>, T> {
+    pub fn try_send(&mut self, val: T, id:i32) -> Result<RetryPromise<T, U>, T> {
         if !self.can_send() {
             return Err(val);
         }
         let (tx, rx) = oneshot::channel();
+        info!("SendRequest {}, sending a new HTTP request over the channel", id);
         self.inner
             .send(Envelope(Some((val, Callback::Retry(tx)))))
             .map(move |_| rx)

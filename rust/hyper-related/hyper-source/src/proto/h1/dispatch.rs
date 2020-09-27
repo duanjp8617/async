@@ -154,7 +154,7 @@ where
             let _ = self.poll_read(cx)?;
             let _ = self.poll_write(cx)?;
             let _ = self.poll_flush(cx)?;
-
+            info!("fuck1");
             // This could happen if reading paused before blocking on IO,
             // such as getting to the end of a framed message, but then
             // writing/flushing set the state back to Init. In that case,
@@ -165,12 +165,13 @@ where
             // the Conn is noticeably faster in pipelined benchmarks.
             if !self.conn.wants_read_again() {
                 //break;
+                info!("fuck2");
                 return Poll::Ready(Ok(()));
             }
         }
 
         trace!("poll_loop yielding (self = {:p})", self);
-
+        info!("fuck 3");
         task::yield_now(cx).map(|never| match never {})
     }
 
@@ -280,12 +281,16 @@ where
     fn poll_write(&mut self, cx: &mut task::Context<'_>) -> Poll<crate::Result<()>> {
         loop {
             if self.is_closing {
+                info!("poll_write b1");
                 return Poll::Ready(Ok(()));
             } else if self.body_rx.is_none()
                 && self.conn.can_write_head()
                 && self.dispatch.should_poll()
             {
+                info!("poll_write b2");
                 if let Some(msg) = ready!(self.dispatch.poll_msg(cx)) {
+                    info!("h1::Dispatcher {}: convert the request into head and body, and store the callback function
+                           for sending the response into itself", self.id);
                     let (head, mut body) = msg.map_err(crate::Error::new_user_service)?;
 
                     // Check if the body knows its full data immediately.
@@ -293,11 +298,13 @@ where
                     // If so, we can skip a bit of bookkeeping that streaming
                     // bodies need to do.
                     if let Some(full) = crate::body::take_full_data(&mut body) {
+                        info!("h1::Dispatcher {}: we can take full data of the body", self.id);
                         self.conn.write_full_msg(head, full);
                         return Poll::Ready(Ok(()));
                     }
 
                     let body_type = if body.is_end_stream() {
+                        info!("h1::Dispatcher {}: body is end stream", self.id);
                         self.body_rx.set(None);
                         None
                     } else {
@@ -309,18 +316,24 @@ where
                         self.body_rx.set(Some(body));
                         btype
                     };
+                    // First write the header, which can be determined when constructing
+                    // the HTTP request.
                     self.conn.write_head(head, body_type);
                 } else {
                     self.close();
+                    info!("poll_write returns OK");
                     return Poll::Ready(Ok(()));
                 }
             } else if !self.conn.can_buffer_body() {
+                info!("poll_write b3");
                 ready!(self.poll_flush(cx))?;
             } else {
+                info!("poll_write b4");
                 // A new scope is needed :(
                 if let (Some(mut body), clear_body) =
                     OptGuard::new(self.body_rx.as_mut()).guard_mut()
                 {
+                    info!("into b4");
                     debug_assert!(!*clear_body, "opt guard defaults to keeping body");
                     if !self.conn.can_write_body() {
                         trace!(
@@ -330,7 +343,8 @@ where
                         *clear_body = true;
                         continue;
                     }
-
+                    // Then, in the next loop, the body is polled for different chunks
+                    // note that the body is actually a stream
                     let item = ready!(body.as_mut().poll_data(cx));
                     if let Some(item) = item {
                         let chunk = item.map_err(|e| {
@@ -358,6 +372,7 @@ where
                         self.conn.end_body()?;
                     }
                 } else {
+                    info!("b4 returns pending");
                     return Poll::Pending;
                 }
             }
@@ -365,6 +380,7 @@ where
     }
 
     fn poll_flush(&mut self, cx: &mut task::Context<'_>) -> Poll<crate::Result<()>> {
+        info!("h1::Dispatcher {}: calling poll_flush", self.id);
         self.conn.poll_flush(cx).map_err(|err| {
             debug!("error writing: {}", err);
             crate::Error::new_body_write(err)
@@ -553,6 +569,7 @@ where
         match self.rx.poll_next(cx, self.id) {
             Poll::Ready(Some((req, mut cb))) => {
                 // check that future hasn't been canceled already
+                info!("h1::ClientDispatch {}: get a new request to send", self.id);
                 match cb.poll_canceled(cx) {
                     Poll::Ready(()) => {
                         trace!("request canceled");

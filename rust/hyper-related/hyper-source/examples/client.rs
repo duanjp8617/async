@@ -3,6 +3,7 @@ use std::env;
 
 use hyper::{body::HttpBody as _, Client};
 use tokio::io::{self, AsyncWriteExt as _};
+use std::ops;
 
 // A simple type alias so as to DRY.
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;

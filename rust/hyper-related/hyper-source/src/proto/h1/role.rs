@@ -85,6 +85,7 @@ pub(super) fn encode_headers<T>(
 where
     T: Http1Transaction,
 {
+    info!("calling encode_headers to generate an encoder into the buf");
     let span = trace_span!("encode_headers");
     let _s = span.enter();
     T::encode(enc, dst)

@@ -52,6 +52,14 @@ where
 }
 
 /// The sender side of an established connection.
+// by djp:
+// SendRequest is just a wrapper around dispatch::Sender,
+// dispatch::Sender has an unbounded Send queue, the receiver side
+// is held by the connection. 
+// When sending a new HTTP request, what is send throught the queue is 
+// the request together with a one-shot tx queue.
+// When the pairing connection receives a new response, it sends
+// the response back from the one-shot rx queue.
 pub struct SendRequest<B> {
     dispatch: dispatch::Sender<Request<B>, Response<Body>>,
     id: i32
@@ -228,7 +236,7 @@ where
     where
         B: Send,
     {
-        match self.dispatch.try_send(req) {
+        match self.dispatch.try_send(req, self.id) {
             Ok(rx) => {
                 Either::Left(rx.then(move |res| {
                     match res {

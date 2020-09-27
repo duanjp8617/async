@@ -216,14 +216,18 @@ where
 
     pub fn poll_flush(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
         if self.flush_pipeline && !self.read_buf.is_empty() {
+            info!("poll_flush b1");
             Poll::Ready(Ok(()))
         } else if self.write_buf.remaining() == 0 {
+            info!("poll_flush b2");
             Pin::new(&mut self.io).poll_flush(cx)
         } else {
+            info!("poll_flush b3");
             if let WriteStrategy::Flatten = self.write_buf.strategy {
                 return self.poll_flush_flattened(cx);
             }
             loop {
+                info!("first, do a loop to write all the content in the write buf to the connection");
                 let n =
                     ready!(Pin::new(&mut self.io).poll_write_buf(cx, &mut self.write_buf.auto()))?;
                 debug!("flushed {} bytes", n);

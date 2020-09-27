@@ -320,7 +320,7 @@ where
             }
 
             let fut = pooled
-                .send_request_retryable(req)
+                .send_request_retryable(req, id)
                 .map_err(ClientError::map_with_reused(pooled.is_reused()));
 
             // If the Connector included 'extra' info, add to Response...
@@ -690,6 +690,7 @@ impl<B: HttpBody + 'static> PoolClient<B> {
     fn send_request_retryable(
         &mut self,
         req: Request<B>,
+        id: i32,
     ) -> impl Future<Output = Result<Response<Body>, (crate::Error, Option<Request<B>>)>>
     where
         B: Send,
