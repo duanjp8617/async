@@ -164,13 +164,14 @@ where
                 },
             )? {
                 Some(msg) => {
-                    debug!("parsed {} headers", msg.head.headers.len());
+                    info!("parsed {} headers", msg.head.headers.len());
                     return Poll::Ready(Ok(msg));
                 }
                 None => {
+                    info!("None");
                     let max = self.read_buf_strategy.max();
                     if self.read_buf.len() >= max {
-                        debug!("max_buf_size ({}) reached, closing", max);
+                        info!("max_buf_size ({}) reached, closing", max);
                         return Poll::Ready(Err(crate::Error::new_too_large()));
                     }
                 }
@@ -190,7 +191,7 @@ where
         }
         match Pin::new(&mut self.io).poll_read_buf(cx, &mut self.read_buf) {
             Poll::Ready(Ok(n)) => {
-                debug!("read {} bytes", n);
+                info!("read {} bytes", n);
                 self.read_buf_strategy.record(n);
                 Poll::Ready(Ok(n))
             }
@@ -215,14 +216,11 @@ where
     }
 
     pub fn poll_flush(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
-        if self.flush_pipeline && !self.read_buf.is_empty() {
-            info!("poll_flush b1");
+        if self.flush_pipeline && !self.read_buf.is_empty() {            
             Poll::Ready(Ok(()))
-        } else if self.write_buf.remaining() == 0 {
-            info!("poll_flush b2");
+        } else if self.write_buf.remaining() == 0 {            
             Pin::new(&mut self.io).poll_flush(cx)
-        } else {
-            info!("poll_flush b3");
+        } else {            
             if let WriteStrategy::Flatten = self.write_buf.strategy {
                 return self.poll_flush_flattened(cx);
             }
@@ -230,6 +228,7 @@ where
                 info!("first, do a loop to write all the content in the write buf to the connection");
                 let n =
                     ready!(Pin::new(&mut self.io).poll_write_buf(cx, &mut self.write_buf.auto()))?;
+                info!("the loop writes {} bytes", n);
                 debug!("flushed {} bytes", n);
                 if self.write_buf.remaining() == 0 {
                     break;

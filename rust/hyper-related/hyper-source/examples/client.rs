@@ -32,10 +32,12 @@ async fn main() -> Result<()> {
     let c_clone = c.clone();
 
     let t1 = tokio::spawn(fetch_url(c, url.clone(), 1));
-    // let t2 = tokio::spawn(fetch_url(c_clone, url, 2));
-
+    let t2 = tokio::spawn(fetch_url(c_clone, url, 2));
+    println!("fuck1");
     let _ = t1.await.unwrap();
-    // let _ = t2.await.unwrap();
+    println!("fuck2");
+    let _ = t2.await.unwrap();
+    println!("fuck3");
 
     Ok(())
 }

@@ -90,6 +90,7 @@ impl Wants {
     }
 
     fn contains(&self, other: Wants) -> bool {
+        info!("return {}", (self.0 & other.0) == other.0);
         (self.0 & other.0) == other.0
     }
 }

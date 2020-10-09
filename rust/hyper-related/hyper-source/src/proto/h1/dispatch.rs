@@ -130,6 +130,7 @@ where
         ready!(self.poll_loop(cx))?;
 
         if self.is_done() {
+            info!("is_done!");
             if let Some(pending) = self.conn.pending_upgrade() {
                 self.conn.take_error()?;
                 return Poll::Ready(Ok(Dispatched::Upgrade(pending)));
@@ -153,8 +154,7 @@ where
         for _ in 0..16 {
             let _ = self.poll_read(cx)?;
             let _ = self.poll_write(cx)?;
-            let _ = self.poll_flush(cx)?;
-            info!("fuck1");
+            let _ = self.poll_flush(cx)?;            
             // This could happen if reading paused before blocking on IO,
             // such as getting to the end of a framed message, but then
             // writing/flushing set the state back to Init. In that case,
@@ -165,34 +165,40 @@ where
             // the Conn is noticeably faster in pipelined benchmarks.
             if !self.conn.wants_read_again() {
                 //break;
-                info!("fuck2");
+                info!("return ready");                
                 return Poll::Ready(Ok(()));
             }
         }
 
         trace!("poll_loop yielding (self = {:p})", self);
-        info!("fuck 3");
+        info!("return pending");
         task::yield_now(cx).map(|never| match never {})
     }
 
     fn poll_read(&mut self, cx: &mut task::Context<'_>) -> Poll<crate::Result<()>> {
+        info!("h1::Dispatcher {}: calling poll_read", self.id);        
         loop {
             if self.is_closing {
                 return Poll::Ready(Ok(()));
             } else if self.conn.can_read_head() {
                 ready!(self.poll_read_head(cx))?;
             } else if let Some(mut body) = self.body_tx.take() {
+                info!("in body_tx.take");
                 if self.conn.can_read_body() {
                     match body.poll_ready(cx) {
-                        Poll::Ready(Ok(())) => (),
+                        Poll::Ready(Ok(())) => {
+                            info!("body_tx is ready");
+                            ()
+                        },
                         Poll::Pending => {
+                            info!("body_tx is pending");
                             self.body_tx = Some(body);
                             return Poll::Pending;
                         }
                         Poll::Ready(Err(_canceled)) => {
                             // user doesn't care about the body
                             // so we should stop reading
-                            trace!("body receiver dropped before eof, draining or closing");
+                            info!("body receiver dropped before eof, draining or closing");
                             self.conn.poll_drain_or_close_read(cx);
                             continue;
                         }
@@ -200,9 +206,11 @@ where
                     match self.conn.poll_read_body(cx) {
                         Poll::Ready(Some(Ok(chunk))) => match body.try_send_data(chunk) {
                             Ok(()) => {
+                                info!("send the received body chunk to upstream");
                                 self.body_tx = Some(body);
                             }
                             Err(_canceled) => {
+                                info!("upstream has closed the channel for receiving body chunk");
                                 if self.conn.can_read_body() {
                                     trace!("body receiver dropped before eof, closing");
                                     self.conn.close_read();
@@ -224,6 +232,7 @@ where
                     // just drop, the body will close automatically
                 }
             } else {
+                info!("nothing to read");
                 return self.conn.poll_read_keep_alive(cx);
             }
         }
@@ -279,15 +288,14 @@ where
     }
 
     fn poll_write(&mut self, cx: &mut task::Context<'_>) -> Poll<crate::Result<()>> {
+        info!("h1::Dispatcher {}: calling poll_write", self.id);        
         loop {
-            if self.is_closing {
-                info!("poll_write b1");
+            if self.is_closing {            
                 return Poll::Ready(Ok(()));
             } else if self.body_rx.is_none()
                 && self.conn.can_write_head()
                 && self.dispatch.should_poll()
             {
-                info!("poll_write b2");
                 if let Some(msg) = ready!(self.dispatch.poll_msg(cx)) {
                     info!("h1::Dispatcher {}: convert the request into head and body, and store the callback function
                            for sending the response into itself", self.id);
@@ -308,6 +316,7 @@ where
                         self.body_rx.set(None);
                         None
                     } else {
+                        info!("h1::Dispatcher {}: body is not end stream", self.id);
                         let btype = body
                             .size_hint()
                             .exact()
@@ -320,20 +329,16 @@ where
                     // the HTTP request.
                     self.conn.write_head(head, body_type);
                 } else {
-                    self.close();
-                    info!("poll_write returns OK");
+                    self.close();                    
                     return Poll::Ready(Ok(()));
                 }
-            } else if !self.conn.can_buffer_body() {
-                info!("poll_write b3");
+            } else if !self.conn.can_buffer_body() {                
                 ready!(self.poll_flush(cx))?;
-            } else {
-                info!("poll_write b4");
+            } else {                
                 // A new scope is needed :(
                 if let (Some(mut body), clear_body) =
                     OptGuard::new(self.body_rx.as_mut()).guard_mut()
-                {
-                    info!("into b4");
+                {                    
                     debug_assert!(!*clear_body, "opt guard defaults to keeping body");
                     if !self.conn.can_write_body() {
                         trace!(
@@ -347,6 +352,7 @@ where
                     // note that the body is actually a stream
                     let item = ready!(body.as_mut().poll_data(cx));
                     if let Some(item) = item {
+                        info!("h1::Dispatcher {}: get a new body to write", self.id);
                         let chunk = item.map_err(|e| {
                             *clear_body = true;
                             crate::Error::new_user_body(e)
@@ -371,8 +377,7 @@ where
                         *clear_body = true;
                         self.conn.end_body()?;
                     }
-                } else {
-                    info!("b4 returns pending");
+                } else {                    
                     return Poll::Pending;
                 }
             }
@@ -606,6 +611,7 @@ where
                     *res.headers_mut() = msg.headers;
                     *res.version_mut() = msg.version;
                     cb.send(Ok(res));
+                    info!("sending the received response back through the callback channel");
                     Ok(())
                 } else {
                     // Getting here is likely a bug! An error should have happened
@@ -643,7 +649,10 @@ where
                     trace!("callback receiver has dropped");
                     Poll::Ready(Err(()))
                 }
-                Poll::Pending => Poll::Ready(Ok(())),
+                Poll::Pending => {
+                    info!("callback channel has not been closed, we can poll for incoming HTTP response");
+                    Poll::Ready(Ok(()))
+                },
             },
             None => Poll::Ready(Err(())),
         }

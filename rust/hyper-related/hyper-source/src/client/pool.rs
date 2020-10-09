@@ -727,6 +727,7 @@ impl<T: Poolable + 'static> Future for IdleTask<T> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
+        info!("IdleTask runs?");
         loop {
             match Pin::new(&mut self.pool_drop_notifier).poll(cx) {
                 Poll::Ready(Ok(n)) => match n {},

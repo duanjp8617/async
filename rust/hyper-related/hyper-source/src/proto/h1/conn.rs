@@ -106,16 +106,24 @@ where
     pub fn can_read_head(&self) -> bool {
         match self.state.reading {
             Reading::Init => {
-                if T::should_read_first() {
+                // info!("poll_read: state is changed to Reading::Init");
+                if T::should_read_first() {                    
                     true
                 } else {
                     match self.state.writing {
-                        Writing::Init => false,
-                        _ => true,
+                        Writing::Init => {                            
+                            false
+                        }
+                        _ => {                            
+                            true
+                        }
                     }
                 }
             }
-            _ => false,
+            _ => {
+                // info!("poll_read: state is not Reading::Init");
+                false
+            }
         }
     }
 
@@ -141,7 +149,7 @@ where
         cx: &mut task::Context<'_>,
     ) -> Poll<Option<crate::Result<(MessageHead<T::Incoming>, DecodedLength, Wants)>>> {
         debug_assert!(self.can_read_head());
-        trace!("Conn::read_head");
+        info!("Conn::read_head");
 
         let msg = match ready!(self.io.parse::<T>(
             cx,
@@ -157,7 +165,7 @@ where
         // Note: don't deconstruct `msg` into local variables, it appears
         // the optimizer doesn't remove the extra copies.
 
-        debug!("incoming body is {}", msg.decode);
+        info!("incoming body is {}", msg.decode);
 
         self.state.busy();
         self.state.keep_alive &= msg.keep_alive;
@@ -170,6 +178,7 @@ where
         };
 
         if msg.decode == DecodedLength::ZERO {
+            info!("b1");
             if msg.expect_continue {
                 debug!("ignoring expect-continue since body is empty");
             }
@@ -178,9 +187,11 @@ where
                 self.try_keep_alive(cx);
             }
         } else if msg.expect_continue {
+            info!("b2");
             self.state.reading = Reading::Continue(Decoder::new(msg.decode));
             wants = wants.add(Wants::EXPECT);
         } else {
+            info!("b3");
             self.state.reading = Reading::Body(Decoder::new(msg.decode));
         }
 
@@ -240,6 +251,7 @@ where
                             // an empty slice...
                             (Reading::Closed, None)
                         } else {
+                            info!("get a slice of body");
                             return Poll::Ready(Some(Ok(slice)));
                         };
                         (reading, Poll::Ready(chunk))
@@ -661,11 +673,11 @@ where
     pub fn poll_shutdown(&mut self, cx: &mut task::Context<'_>) -> Poll<io::Result<()>> {
         match ready!(Pin::new(self.io.io_mut()).poll_shutdown(cx)) {
             Ok(()) => {
-                trace!("shut down IO complete");
+                info!("shut down IO complete");
                 Poll::Ready(Ok(()))
             }
             Err(e) => {
-                debug!("error shutting down IO: {}", e);
+                info!("error shutting down IO: {}", e);
                 Poll::Ready(Err(e))
             }
         }
